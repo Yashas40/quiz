@@ -7,16 +7,17 @@ from django.conf import settings
 
 def call_judge0(source_code, language_id, stdin, expected_output):
     """
-    Call Judge0 API to execute code.
+    I use this function to send the user's code to the Judge0 API.
+    It runs the code and tells me if it passed or failed.
     
     Args:
-        source_code (str): The source code to execute.
-        language_id (int): The ID of the language (e.g., 71 for Python, 54 for C++, 63 for JS).
-        stdin (str): Input for the program.
-        expected_output (str): The expected output to compare against.
+        source_code: The code the user wrote.
+        language_id: The ID of the language (like 71 for Python).
+        stdin: Any input the code needs.
+        expected_output: What the code SHOULD print.
         
     Returns:
-        dict: Result containing status, stdout, stderr, etc.
+        A dictionary with the result (Pass/Fail, Output, Error).
     """
     url = "https://judge0-ce.p.rapidapi.com/submissions"
     

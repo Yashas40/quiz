@@ -1,14 +1,14 @@
 """
-Django view snippets showing integration with utils.blackbox_validator.validate_payload
+Django view snippets showing integration with utils.sandbox_validator.validate_payload
 
-This file contains example endpoints demonstrating consistent Blackbox-style
+This file contains example endpoints demonstrating consistent Sandbox-style
 error JSON when payload validation fails.
 """
 import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-from utils.blackbox_validator import validate_payload
+from utils.sandbox_validator import validate_payload
 
 
 @csrf_exempt

@@ -1,5 +1,5 @@
 import pytest
-from utils.blackbox_validator import validate_payload
+from utils.sandbox_validator import validate_payload
 
 
 def test_valid_generate_minimal():

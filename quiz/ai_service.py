@@ -87,8 +87,8 @@ class GeminiQuestionGenerator:
 
     def _generate_questions_batch(self, topic, difficulty="medium", num_questions=5):
         """
-        Generate multiple questions in a single API call (faster and cheaper).
-        Uses streaming + better prompt + cached DB uniqueness check.
+        I try to get all questions at once (Batch) because it's faster.
+        I ask Gemini to give me a JSON array.
         """
         max_retries = 3
         base_delay = 1  # smaller base delay
@@ -102,6 +102,8 @@ class GeminiQuestionGenerator:
 
         for attempt in range(max_retries):
             try:
+                # This is the prompt I send to Gemini.
+                # I tell it exactly what I want: JSON format, no duplicates.
                 prompt = f"""
 Generate exactly {num_questions} unique multiple-choice aptitude questions
 on the topic: {topic}.
@@ -256,8 +258,8 @@ Requirements:
         self, topic, difficulty="medium", num_questions=5
     ):
         """
-        Fallback: generate questions one-by-one.
-        Optimized to avoid repeated DB hits for uniqueness.
+        If the batch method fails, I generate questions one by one.
+        It's slower but safer.
         """
         questions_data = []
         max_retries = 3

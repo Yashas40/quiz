@@ -1,7 +1,7 @@
 """
-Blackbox payload validator for GENERATE and EDIT modes.
+Sandbox payload validator for GENERATE and EDIT modes.
 
-Provides `validate_blackbox_payload(payload)` which returns (True, None)
+Provides `validate_sandbox_payload(payload)` which returns (True, None)
 on success or (False, error_message) on failure.
 
 This module is used by the Django API endpoint that accepts generation
@@ -28,7 +28,7 @@ def _is_positive_int(n: Any) -> bool:
     return isinstance(n, int) and n > 0
 
 
-def validate_blackbox_payload(payload: Dict) -> Tuple[bool, str]:
+def validate_sandbox_payload(payload: Dict) -> Tuple[bool, str]:
     """Validate payload for GENERATE or EDIT mode.
 
     Returns (True, None) when valid, otherwise (False, error_message).

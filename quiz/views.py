@@ -112,13 +112,22 @@ def logout_view(request):
     messages.success(request, "You have been logged out.")
     return redirect("quiz:login")
 
-# ==================== SINGLE PLAYER FLOW ====================
+# ==============================================================================
+# Single Player Game Logic
+# ==============================================================================
+# This is where I handle the Single Player mode.
+# I create the session here and then fetch the questions.
+# ==============================================================================
 
 @csrf_exempt
 def start_single_session(request):
     """
-    Start a new single-player quiz session.
-    Frontend sends topics, difficulty, number of questions, time-per-question.
+    I use this function to start a new game for one player.
+    
+    What I do here:
+    1. I get the topic and difficulty the user selected.
+    2. I create a new 'QuizSession' in my database.
+    3. I get the questions (MCQs) and save them so the user can play.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -179,8 +188,13 @@ def start_single_session(request):
 @csrf_exempt
 def submit_answer(request):
     """
-    API endpoint to submit an answer in single player mode.
-    Updates PlayerScore and returns next question or final summary.
+    This function runs when the user clicks 'Submit'.
+    
+    My Logic:
+    1. I check if the answer they clicked is the correct one.
+    2. If it is, I increase their score.
+    3. Then I move to the next question.
+    4. If the game is over, I show the final score.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request"}, status=400)
@@ -270,13 +284,20 @@ def submit_answer(request):
 
     return JsonResponse(response)
 
-# ==================== GENERIC QUIZ SESSION GENERATOR ====================
+# ==============================================================================
+# Game Logic (The Brain)
+# ==============================================================================
+# This is the main part of my code. It decides what kind of game to make.
+# It handles Multiplayer and Coding Battles too.
+# ==============================================================================
 
 @csrf_exempt
 def generate_quiz_session(request):
     """
-    Generic API to generate a quiz or mixed session.
-    Used by Smart Quiz Arena to get MCQ and coding questions together.
+    This is my main generator function.
+    
+    It looks at what the user wants (MCQ or Coding) and prepares the game.
+    If it's multiplayer, I make sure everyone gets the same questions.
     """
     if request.method != "POST":
         return JsonResponse({"error": "Method not allowed"}, status=405)
@@ -339,13 +360,19 @@ def generate_quiz_session(request):
 
     return JsonResponse(response)
 
-# ==================== QUESTION HELPERS ====================
+# ==============================================================================
+# Question Helpers
+# ==============================================================================
+# These are small functions I wrote to help me get questions from the database.
+# ==============================================================================
 
 def generate_mcq_questions(count, topics, difficulty, time_limit, user=None):
     """
-    Simple MCQ generator:
-    1) Try to get questions from DB matching topic + difficulty.
-    2) If not enough, use a small hardcoded fallback list.
+    This function gets MCQ questions.
+    
+    1. I try to find questions in my database first.
+    2. If I don't have enough, I use a backup list so the game doesn't crash.
+    3. I shuffle them so it's random.
     """
     qs = Question.objects.filter(question_type="multiple_choice")
 
@@ -400,7 +427,10 @@ def generate_mcq_questions(count, topics, difficulty, time_limit, user=None):
 
 def generate_coding_questions(count, topics, difficulty, time_limit):
     """
-    Generate coding questions by fetching from the CodingProblem model.
+    This function gets Coding questions.
+    
+    I get them from the 'CodingProblem' table in my database.
+    I shuffle them so users don't see the same question twice.
     """
     questions = []
     
@@ -537,7 +567,11 @@ def get_next_question(request, session_id):
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
 
-# ==================== DASHBOARD & LEADERBOARD ====================
+# ==============================================================================
+# Dashboard & Stats
+# ==============================================================================
+# Here I calculate the user's score and win rate to show on the dashboard.
+# ==============================================================================
 
 @login_required(login_url="quiz:login")
 def dashboard_view(request):

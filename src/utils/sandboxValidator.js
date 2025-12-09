@@ -1,8 +1,8 @@
 /**
- * Client-side Blackbox payload validator (Node/Browser)
- * validateBlackboxPayload(payload) -> { ok: boolean, error: string | null }
+ * Client-side Sandbox payload validator (Node/Browser)
+ * validateSandboxPayload(payload) -> { ok: boolean, error: string | null }
  *
- * Mirrors server-side validation rules in utils/blackbox_validator.py
+ * Mirrors server-side validation rules in utils/sandbox_validator.py
  */
 
 const ALLOWED_TOPICS = new Set(["ada", "python", "web_development"]);
@@ -83,7 +83,7 @@ function validateEdit(payload) {
   return { ok: true, error: null };
 }
 
-export function validateBlackboxPayload(payload) {
+export function validateSandboxPayload(payload) {
   if (typeof payload !== 'object' || payload === null) return { ok: false, error: 'Payload must be an object.' };
   if ('source_package' in payload || 'edit_request' in payload) return validateEdit(payload);
   if ('mode' in payload || 'session_id' in payload || 'num_questions' in payload) return validateGenerate(payload);
@@ -91,4 +91,4 @@ export function validateBlackboxPayload(payload) {
 }
 
 // CommonJS support
-if (typeof module !== 'undefined') module.exports = { validateBlackboxPayload };
+if (typeof module !== 'undefined') module.exports = { validateSandboxPayload };
