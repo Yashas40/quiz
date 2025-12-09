@@ -1,0 +1,79 @@
+{% extends 'quiz/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="text-center mb-5">
+        <h1 class="display-4 fw-bold text-primary">🏆 Global Leaderboard</h1>
+        <p class="lead text-muted">See who's dominating the arena.</p>
+    </div>
+
+    <div class="card bg-white border shadow-lg" style="border-color: var(--card-border);">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0 align-middle">
+                    <thead class="bg-light">
+                        <tr>
+                            <th scope="col" class="py-3 ps-4 text-muted">Rank</th>
+                            <th scope="col" class="py-3 text-muted">Player</th>
+                            <th scope="col" class="py-3 text-center text-muted">Score</th>
+                            <th scope="col" class="py-3 text-center text-muted">Games</th>
+                            <th scope="col" class="py-3 text-end pe-4 text-muted">Win Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for player in leaderboard %}
+                        <tr
+                            class="{% if player.is_current %}table-active border-start border-4 border-primary{% endif %}">
+                            <td class="ps-4">
+                                {% if player.rank == 1 %}
+                                <span class="badge bg-warning text-dark rounded-pill">🥇 1</span>
+                                {% elif player.rank == 2 %}
+                                <span class="badge bg-secondary rounded-pill">🥈 2</span>
+                                {% elif player.rank == 3 %}
+                                <span class="badge bg-danger rounded-pill">🥉 3</span>
+                                {% else %}
+                                <span class="text-muted fw-bold">#{{ player.rank }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="avatar-placeholder bg-gradient me-3 rounded-circle d-flex align-items-center justify-content-center"
+                                        style="width: 40px; height: 40px; background-color: #e9ecef; color: var(--text-color);">
+                                        {{ player.username|make_list|first|upper }}
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 {% if player.is_current %}text-primary fw-bold{% endif %}">
+                                            {{ player.username }}
+                                            {% if player.is_current %}<span class="badge bg-primary ms-2"
+                                                style="font-size: 0.6em;">YOU</span>{% endif %}
+                                        </h6>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center fw-bold text-primary">{{ player.score }}</td>
+                            <td class="text-center text-muted">{{ player.games_played }}</td>
+                            <td class="text-end pe-4">
+                                <div class="d-flex align-items-center justify-content-end">
+                                    <span class="me-2">{{ player.win_rate }}%</span>
+                                    <div class="progress" style="width: 60px; height: 6px;">
+                                        <div class="progress-bar bg-success" role="progressbar"
+                                            style="width: {{ player.win_rate }}%"></div>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center py-5 text-muted">
+                                No players found yet. Be the first to play!
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

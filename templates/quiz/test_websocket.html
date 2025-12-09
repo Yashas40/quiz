@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>WebSocket Test</title>
+</head>
+
+<body>
+    <h1>WebSocket Test</h1>
+    <button id="createBtn">Create Room</button>
+    <div id="log" style="font-family: monospace; white-space: pre-wrap; margin-top: 20px;"></div>
+
+    <script>
+        function log(msg) {
+            document.getElementById('log').textContent += new Date().toLocaleTimeString() + ' - ' + msg + '\n';
+        }
+
+        document.getElementById('createBtn').addEventListener('click', () => {
+            const ws = new WebSocket('ws://localhost:8000/ws/quiz/');
+
+            ws.onopen = () => {
+                log('Connected!');
+                ws.send(JSON.stringify({
+                    action: 'create',
+                    num_questions: 5,
+                    topics: [],
+                    player: 'test_player'
+                }));
+                log('Sent create message');
+            };
+
+            ws.onmessage = (event) => {
+                log('Received: ' + event.data);
+                const msg = JSON.parse(event.data);
+                if (msg.event === 'created') {
+                    log('ROOM CREATED: ' + msg.room);
+                    alert('Room created: ' + msg.room);
+                }
+            };
+
+            ws.onerror = (error) => {
+                log('Error: ' + error);
+            };
+
+            ws.onclose = () => {
+                log('Connection closed');
+            };
+        });
+    </script>
+</body>
+
+</html>

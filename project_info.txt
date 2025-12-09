@@ -1,0 +1,61 @@
+Project Information Report
+==========================
+
+1. Modules
+----------
+The project is a Django-based web application with the following main modules:
+- **quiz**: The core application module containing models, views, consumers (WebSockets), and AI services.
+- **smartquizarena**: The project configuration module (settings, main URLs, ASGI/WSGI config).
+- **utils**: Utility functions (likely for code execution/judging).
+- **validators**: Validation logic.
+- **templates**: Contains the HTML frontend templates.
+
+2. API Files
+------------
+The API is defined and implemented in the following files:
+- **URL Definitions**: `quiz/urls.py`
+  - Defines endpoints like `start-single-session/`, `submit-answer/`, `generate-question/`, etc.
+- **View Implementations**: `quiz/views.py`
+  - Contains the logic for these endpoints. Key functions include:
+    - `start_single_session`: Initializes a quiz session.
+    - `submit_answer`: Handles answer submission and scoring.
+    - `generate_question`: Triggers AI question generation.
+    - `generate_quiz_session`: Creates a full session with questions.
+
+3. Login Frontend
+-----------------
+- **Frontend File**: `templates/quiz/login.html`
+  - This HTML file contains the login form.
+- **Backend Logic**: `quiz/views.py`
+  - The `login_view` function (lines ~173-194) handles the POST request, authenticates the user, and logs them in.
+
+4. Connection Code (Database & WebSockets)
+------------------------------------------
+- **Database Connection**:
+  - Configured in `smartquizarena/settings.py` (standard Django `DATABASES` setting).
+  - Used throughout `quiz/models.py` and `quiz/views.py` via Django's ORM.
+- **WebSocket Connection (Real-time)**:
+  - **Entry Point**: `smartquizarena/asgi.py` sets up the ASGI application.
+  - **Routing**: `quiz/routing.py` maps WebSocket URLs (e.g., `ws/quiz/room/<room_name>/`) to consumers.
+  - **Logic**: `quiz/consumers.py` contains the core WebSocket logic.
+    - `QuizConsumer`: Handles multiplayer quiz logic.
+    - `CodingBattleConsumer`: Handles 1v1 coding battles.
+
+5. Question Source
+------------------
+Questions are obtained from two primary sources:
+1.  **Database**: The `Question` model in `quiz/models.py` stores questions.
+2.  **AI Generation**: The `quiz/ai_service.py` module uses the Google Gemini API (`gemini-1.5-flash`) to generate new questions dynamically.
+    - **Logic**: The `generate_mcq_questions` function in `quiz/views.py` (lines ~531+) first attempts to fetch unique questions from the database. If insufficient questions exist, it calls `GeminiQuestionGenerator` in `quiz/ai_service.py` to generate more.
+
+6. Live Updates Mechanism
+-------------------------
+- **Mechanism**: WebSockets using **Django Channels**.
+- **Direction**: **Two-way communication**.
+  - **Client to Server**: Clients send JSON messages with actions like `create`, `join`, `answer`, `submit`.
+  - **Server to Client**: The server processes these actions and broadcasts events to all connected clients in the room (e.g., `player_joined`, `question`, `submission_result`, `game_over`).
+- **Key Code**:
+  - `quiz/consumers.py`:
+    - `receive()`: Handles incoming messages from clients.
+    - `group_send()`: Broadcasts messages to the group (room).
+    - `send()`: Sends messages back to individual clients.

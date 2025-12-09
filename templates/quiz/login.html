@@ -1,0 +1,39 @@
+{% extends 'quiz/base.html' %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="card bg-white text-dark border shadow-lg"
+        style="max-width: 400px; width: 100%; border-color: var(--card-border);">
+        <div class="card-header bg-white border-bottom text-center py-4" style="border-color: var(--card-border);">
+            <h3 class="mb-0 fw-bold text-primary">Login</h3>
+            <small class="text-muted">Welcome back to the Arena</small>
+        </div>
+        <div class="card-body p-4">
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="username" class="form-label text-muted">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" required autofocus>
+                </div>
+                <div class="mb-4">
+                    <label for="password" class="form-label text-muted">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <div class="d-grid gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg">Login</button>
+                    <a href="{% url 'quiz:signup' %}" class="btn btn-outline-secondary">Create Account</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

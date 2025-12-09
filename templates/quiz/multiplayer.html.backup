@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multiplayer Quiz - SmartQuizArena</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .lobby-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 50px auto;
+            max-width: 800px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        }
+
+        .player-card {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+        }
+
+        .ready {
+            background: #28a745;
+            color: white;
+        }
+
+        .waiting {
+            background: #ffc107;
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="lobby-container">
+            <div class="text-center mb-4">
+                <h2>👥 Multiplayer Quiz Lobby</h2>
+                <p>Wait for other players to join...</p>
+            </div>
+
+            <div id="playersList">
+                <div class="player-card">
+                    <span>You</span>
+                    <span class="status-badge ready">Ready</span>
+                </div>
+            </div>
+
+            <div class="text-center mt-4">
+                <div class="row g-2">
+                    <div class="col-md-5">
+                        <input id="playerName" class="form-control" placeholder="Your name (optional)">
+                    </div>
+                    <div class="col-md-4">
+                        <input id="roomInput" class="form-control" placeholder="Room name (leave blank to create)">
+                    </div>
+                    <div class="col-md-3">
+                        <button id="connectBtn" class="btn btn-success w-100">Create / Join</button>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button class="btn btn-secondary" id="leaveBtn" style="display:none">Leave</button>
+                    <a href="{% url 'quiz:home' %}" class="btn btn-light">Back to Home</a>
+                </div>
+            </div>
+
+            <!-- Room banner: shows created room and a copy button for easy sharing -->
+            <div id="roomBanner" style="display:none" class="text-center mt-3">
+                <div class="alert alert-info d-inline-block" role="alert" id="roomBannerText">
+                    Room: <strong id="roomNameDisplay"></strong>
+                    <button id="copyRoomBtn" class="btn btn-sm btn-outline-primary ms-2">Copy</button>
+                    <a id="joinLink" class="btn btn-sm btn-outline-success ms-2" target="_blank">Open in new tab</a>
+                </div>
+            </div>
+
+            <!-- Status/log area is visible immediately so connection logs show up before joining -->
+            <div id="status" class="mb-2" style="min-height:2.2em"></div>
+
+            <div id="gameArea" style="display:none" class="mt-3">
+                <div id="questionBox" class="question-card" style="display:none">
+                    <h5 id="qtext"></h5>
+                    <div id="qoptions" class="mt-2"></div>
+                </div>
+                <div id="results" class="mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let room = null;
+        let player = null;
+
+        function getCsrf() {
+            const el = document.querySelector('[name=csrfmiddlewaretoken]');
+            return el ? el.value : '';
+        }
+
+        // small helper to append a log line into the status box so users see connection attempts/errors
+        function appendLog(msg) {
+            try {
+                const s = document.getElementById('status');
+                const p = document.createElement('div');
+                p.style.fontSize = '0.9rem';
+                p.style.opacity = '0.95';
+                p.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+                // put newest on top
+                if (s.firstChild) s.insertBefore(p, s.firstChild); else s.appendChild(p);
+            } catch (e) {
+                console.log('appendLog failed', e, msg);
+            }
+        }
+
+        document.getElementById('connectBtn').addEventListener('click', () => {
+            const btn = document.getElementById('connectBtn');
+            btn.disabled = true;
+            player = document.getElementById('playerName').value || ('p' + Math.floor(Math.random() * 9000 + 1000));
+            room = document.getElementById('roomInput').value || '';
+            appendLog('Attempting to connect...');
+            connectSocket().catch(err => {
+                appendLog('Connection failed: ' + err);
+                btn.disabled = false;
+            });
+        });
+
+        document.getElementById('leaveBtn').addEventListener('click', () => {
+            if (socket) { socket.send(JSON.stringify({ action: 'leave' })); socket.close(); }
+            location.reload();
+        });
+
+
+
+        // small helper to try connecting, returns a Promise that resolves when socket opens or rejects
+        function tryConnect(url) {
+            return new Promise((resolve, reject) => {
+                const s = new WebSocket(url);
+                const to = setTimeout(() => {
+                    try { s.close(); } catch (_) { }
+                    reject('timeout');
+                }, 4000);
+                s.addEventListener('open', () => { clearTimeout(to); resolve(s); });
+                s.addEventListener('error', (e) => { clearTimeout(to); reject(e); });
+            });
+        }
+
+        // Try both common websocket paths (with and without trailing slash) for robustness
+        async function connectSocket() {
+            const proto = (location.protocol === 'https:') ? 'wss' : 'ws';
+            const host = location.hostname + ':8000';
+            const paths = [`${proto}://${host}/ws/quiz/`, `${proto}://${host}/ws/quiz`];
+            let s = null;
+            let lastErr = null;
+            for (const p of paths) {
+                appendLog('Trying ' + p);
+                try {
+                    s = await tryConnect(p);
+                    appendLog('Connected to ' + p);
+                    // - canonical: {event: 'name', data: {...}}
+                    // - legacy: {created: {...}} or {room: 'name', ...}
+                    const evnt = msg.event || Object.keys(msg).find(k => ['created', 'player_joined', 'question', 'answer_result', 'finished', 'player_left', 'error'].includes(k));
+                    const payload = msg.data || msg[evnt] || msg;
+                    console.log('WS recv:', { evnt, payload, raw });
+
+                    // Normalize event name for legacy keys
+                    const eventName = evnt === 'created' || evnt === 'player_joined' || evnt === 'question' || evnt === 'answer_result' || evnt === 'finished' || evnt === 'player_left' ? evnt : msg.event || (evnt || null);
+
+                    if (eventName === 'created') {
+                        // extract room from several possible locations
+                        room = (payload && (payload.room || payload.room_name || payload.roomName)) || msg.room || msg.room_name || msg.roomName || room;
+                        document.getElementById('status').textContent = 'Room created: ' + room + ' (share with friend)';
+                        document.getElementById('leaveBtn').style.display = 'inline-block';
+                        appendLog('Created room ' + room);
+                        // show banner and copy/join controls
+                        try {
+                            document.getElementById('roomNameDisplay').textContent = room;
+                            document.getElementById('roomBanner').style.display = 'block';
+                            document.getElementById('copyRoomBtn').onclick = () => {
+                                navigator.clipboard.writeText(room);
+                                appendLog('Room name copied to clipboard');
+                            };
+                            const joinLink = document.getElementById('joinLink');
+                            joinLink.href = location.origin + '/multiplayer/?room=' + encodeURIComponent(room);
+                            joinLink.textContent = 'Open in new tab';
+                        } catch (e) { console.warn(e); }
+                    } else if (eventName === 'player_joined') {
+                        const players = (payload && payload.players) || msg.players || [];
+                        document.getElementById('status').textContent = 'Players: ' + (players.join ? players.join(', ') : players);
+                        document.getElementById('leaveBtn').style.display = 'inline-block';
+                        document.getElementById('gameArea').style.display = 'block';
+                        appendLog('Player joined: ' + ((payload && payload.player) || msg.player || '') + ' ; players: ' + (players.join ? players.join(', ') : JSON.stringify(players)));
+                    } else if (eventName === 'question') {
+                        showQuestion(payload || msg);
+                    } else if (eventName === 'answer_result') {
+                        const r = document.getElementById('results');
+                        r.innerHTML += `<div>${(payload && payload.player) || msg.player} answered: ${((payload && payload.correct) || msg.correct) ? '✔️' : '❌'}</div>`;
+                    } else if (eventName === 'finished') {
+                        const r = document.getElementById('results');
+                        const resultsObj = (payload && (payload.results || payload)) || msg.results || msg;
+                        r.innerHTML += `<h4>Game finished</h4><pre>${JSON.stringify(resultsObj)}</pre>`;
+                        document.getElementById('questionBox').style.display = 'none';
+                    } else if (eventName === 'player_left') {
+                        const players = (payload && payload.players) || msg.players || [];
+                        document.getElementById('status').textContent = 'Players: ' + (players.join ? players.join(', ') : JSON.stringify(players));
+                    } else if (msg.error || (payload && payload.error)) {
+                        appendLog('Server error: ' + (msg.message || (payload && payload.message) || JSON.stringify(msg)));
+                    } else {
+                        // Unknown event - just log it for debugging
+                        appendLog('Unhandled WS message: ' + JSON.stringify({ evnt: eventName, payload }));
+                    }
+                } catch (e) {
+                    appendLog('Malformed WS message: ' + e + ' - raw: ' + ev.data);
+                }
+            });
+
+            socket.addEventListener('close', (ev) => {
+                appendLog('WebSocket closed (' + ev.code + ')');
+                document.getElementById('status').textContent = 'Disconnected';
+                document.getElementById('connectBtn').disabled = false;
+            });
+
+            socket.addEventListener('error', (e) => { appendLog('WebSocket error'); });
+
+            return socket;
+        }
+
+        function showQuestion(q) {
+            document.getElementById('questionBox').style.display = 'block';
+            document.getElementById('qtext').textContent = `(${q.order}/${q.total}) ${q.question_text}`;
+            const oc = document.getElementById('qoptions');
+            oc.innerHTML = '';
+            (q.options || []).forEach((opt, idx) => {
+                const btn = document.createElement('button');
+                btn.className = 'btn btn-outline-primary m-1';
+                btn.textContent = opt;
+                btn.onclick = () => {
+                    socket.send(JSON.stringify({ action: 'answer', room: room, player: player, selected: idx }));
+                    // disable options
+                    Array.from(oc.children).forEach(b => b.disabled = true);
+                };
+                oc.appendChild(btn);
+            });
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>

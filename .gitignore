@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+
+# Virtualenv
+venv/
+env/
+.mvenv/
+
+# Django
+*.sqlite3
+db.sqlite3
+*.log
+media/
+staticfiles/
+
+# IDEs
+.vscode/
+.idea/
+
+# mac/windows
+.DS_Store
+Thumbs.db
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# git-lfs metadata
+.gitattributes
+
+# Data Science / Large Files (just in case)
+*.ipynb_checkpoints
+*.pth
+*.h5
+*.onnx
+*.pkl
+*.model

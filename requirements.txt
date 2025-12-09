@@ -1,0 +1,10 @@
+asgiref
+channels
+daphne
+Django
+django-redis
+Pillow
+protobuf
+Requests
+websockets
+google-generativeai

@@ -1,0 +1,645 @@
+{% extends 'quiz/base.html' %}
+
+{% block title %}Coding Battle Arena | SmartQuizArena{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.css" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/theme/eclipse.min.css" rel="stylesheet">
+<style>
+    /* Override base styles for full-screen battle */
+    body {
+        overflow: hidden;
+        /* Prevent body scroll */
+    }
+
+    .navbar {
+        flex-shrink: 0;
+    }
+
+    .footer {
+        display: none;
+        /* Hide footer for max space */
+    }
+
+    .battle-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: calc(100vh - 70px);
+        /* Adjust for navbar */
+        padding: 10px;
+        overflow: hidden;
+    }
+
+    .battle-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        border-radius: 10px;
+        border: 1px solid var(--card-border);
+        overflow: hidden;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .battle-header {
+        flex-shrink: 0;
+        background: #f8f9fa;
+        padding: 10px 20px;
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .battle-content {
+        flex: 1;
+        display: flex;
+        overflow: hidden;
+    }
+
+    .problem-panel {
+        flex: 0 0 40%;
+        border-right: 1px solid var(--card-border);
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+    }
+
+    .problem-scroll {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    .output-panel {
+        flex: 0 0 30%;
+        border-top: 1px solid var(--card-border);
+        background: #f8f9fa;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .output-header {
+        padding: 5px 10px;
+        background: #e9ecef;
+        font-size: 0.85rem;
+        border-bottom: 1px solid var(--card-border);
+        color: var(--text-color);
+    }
+
+    .output-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 10px;
+        font-family: 'Consolas', monospace;
+        font-size: 0.9rem;
+        color: var(--text-color);
+    }
+
+    .editor-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: #ffffff;
+        overflow: hidden;
+    }
+
+    .editor-toolbar {
+        padding: 10px;
+        background: #f8f9fa;
+        border-bottom: 1px solid var(--card-border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .CodeMirror {
+        flex: 1;
+        height: auto !important;
+        font-family: 'Consolas', monospace;
+        font-size: 14px;
+        background: #ffffff;
+    }
+
+    /* Setup Screen Styles */
+    .setup-screen {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .setup-card {
+        background: #ffffff;
+        padding: 40px;
+        border-radius: 15px;
+        width: 100%;
+        max-width: 500px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+        border: 1px solid var(--card-border);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Setup Screen Overlay -->
+<div id="setupArea" class="setup-screen">
+    <div class="setup-card text-center">
+        <h2 class="mb-4 text-primary fw-bold">⚔️ Coding Battle Arena</h2>
+        <div class="mb-4">
+            <input type="text" id="playerName" class="form-control mb-3" placeholder="Enter your nickname">
+        </div>
+
+        <div class="row g-3">
+            <div class="col-6">
+                <div class="d-grid gap-2">
+                    <select id="difficultySelect" class="form-select">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                        <option value="mixed">Mixed</option>
+                    </select>
+                    <button id="createBtn" class="btn btn-primary fw-bold">Create Battle</button>
+                </div>
+            </div>
+            <div class="col-6">
+                <div class="d-grid gap-2">
+                    <input type="text" id="roomInput" class="form-control" placeholder="Room ID">
+                    <button id="joinBtn" class="btn btn-success fw-bold">Join Battle</button>
+                </div>
+            </div>
+        </div>
+        <div id="waitingMsg" class="mt-4" style="display:none;">
+            <div class="spinner-border text-primary mb-2" role="status"></div>
+            <p class="text-info mb-0">Waiting for opponent...</p>
+            <p class="text-muted small">Room Code: <strong id="displayRoomCode"
+                    class="text-primary font-monospace fs-5"></strong></p>
+        </div>
+    </div>
+</div>
+
+<!-- Main Battle Interface -->
+<div id="battleArea" class="battle-wrapper" style="display:none;">
+    <div class="battle-container">
+        <!-- Header -->
+        <div class="battle-header">
+            <div class="d-flex align-items-center">
+                <span class="badge bg-primary me-2">Room: <span id="roomBadge"></span></span>
+                <span class="text-muted small me-3">Opponent: <span id="opponentName"
+                        class="fw-bold text-dark">Waiting...</span></span>
+                <button class="btn btn-sm btn-outline-info me-2" data-bs-toggle="modal" data-bs-target="#helpModal">
+                    <i class="fas fa-question-circle"></i> Help
+                </button>
+            </div>
+            <div class="timer font-monospace fs-4 text-primary fw-bold" id="timer">00:00</div>
+            <button class="btn btn-sm btn-outline-danger" onclick="location.reload()">Leave</button>
+        </div>
+
+        <!-- Content -->
+        <div class="battle-content">
+            <!-- Left: Problem & Output -->
+            <div class="problem-panel">
+                <div class="problem-scroll">
+                    <h4 id="problemTitle" class="text-primary mb-3">Loading Problem...</h4>
+                    <div id="problemDesc" class="text-muted mb-4">Waiting for battle to start...</div>
+
+                    <div class="mt-auto">
+                        <h6 class="text-muted border-bottom pb-2 mb-2">Input Format & Examples</h6>
+                        <div class="alert alert-info py-2 px-3 small mb-2">
+                            <i class="fas fa-info-circle me-1"></i>
+                            <strong>Note:</strong> Input is provided via <code>stdin</code>. Your code should read the
+                            input, process it, and print the result to <code>stdout</code>.
+                        </div>
+                        <pre id="inputFormat" class="text-dark bg-light p-2 rounded small border"
+                            style="display:none; max-height: 200px; overflow-y: auto;"></pre>
+                    </div>
+                </div>
+
+                <div class="output-panel">
+                    <div class="output-header">
+                        <span class="text-uppercase fw-bold text-muted">Test Results</span>
+                    </div>
+                    <div id="myOutput" class="output-content">
+                        <div class="text-muted fst-italic">Ready to run code...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Editor -->
+            <div class="editor-panel">
+                <div class="editor-toolbar">
+                    <select class="form-select form-select-sm w-auto" id="language">
+                        <option value="71">Python (3.8.1)</option>
+                        <option value="63">JavaScript (Node.js 12.14.0)</option>
+                        <option value="54">C++ (GCC 9.2.0)</option>
+                        <option value="62">Java (OpenJDK 13.0.1)</option>
+                    </select>
+                    <button class="btn btn-success btn-sm px-4 fw-bold" id="submitBtn">
+                        <span class="spinner-border spinner-border-sm d-none me-1" role="status"
+                            aria-hidden="true"></span>
+                        Run & Submit
+                    </button>
+                </div>
+                <textarea id="codeEditor"></textarea>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Game Over Modal -->
+<div class="modal fade" id="gameOverModal" tabindex="-1" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Battle Finished!</h5>
+            </div>
+            <div class="modal-body text-center p-4">
+                <h1 id="winnerText" class="display-4 mb-3"></h1>
+                <p id="winReason" class="lead text-muted mb-4"></p>
+                <div id="finalStats" class="text-start bg-light p-3 rounded border"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="d-flex gap-2 w-100">
+                    <button type="button" class="btn btn-secondary flex-grow-1" onclick="location.reload()">Back to
+                        Lobby</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div class="modal fade" id="helpModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title text-info"><i class="fas fa-lightbulb me-2"></i>How to Write Code</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4">
+                <h6 class="text-warning mb-3">⚠️ Important: Do NOT Hardcode Values!</h6>
+                <p>Your code is tested against multiple hidden test cases. If you hardcode values like
+                    <code>a = 5</code>, your code will fail when the system tests it with <code>a = 100</code>.
+                </p>
+
+                <div class="row g-4 mt-2">
+                    <div class="col-md-6">
+                        <div class="p-3 border border-danger rounded bg-danger bg-opacity-10 h-100">
+                            <h6 class="text-danger fw-bold">❌ Incorrect Approach</h6>
+                            <pre class="text-dark small mb-0">
+# Don't do this!
+a = 5
+b = 10
+print(a + b) 
+# This always prints 15
+                            </pre>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 border border-success rounded bg-success bg-opacity-10 h-100">
+                            <h6 class="text-success fw-bold">✅ Correct Approach</h6>
+                            <pre class="text-dark small mb-0">
+import sys
+
+# 1. Read from Standard Input
+input_str = sys.stdin.read().split()
+a = int(input_str[0])
+b = int(input_str[1])
+
+# 2. Process
+result = a + b
+
+# 3. Print to Standard Output
+print(result)
+                            </pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="text-muted">Tips:</h6>
+                    <ul class="small text-muted">
+                        <li>We provide <strong>Starter Code</strong> that handles input reading for you.</li>
+                        <li>Just implement the logic inside the function (e.g., <code>add_two_numbers</code>).</li>
+                        <li>Ensure your code prints the final result to <code>stdout</code>.</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Got it!</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/javascript/javascript.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.2/mode/clike/clike.min.js"></script>
+
+<script>
+    // --- State ---
+    let socket = null;
+    let roomName = null;
+    let playerName = null;
+    let editor = null;
+    let isRunning = false;
+    let startTime = null;
+    let timerInterval = null;
+
+    // --- Initialization ---
+    document.addEventListener('DOMContentLoaded', () => {
+        // Setup CodeMirror
+        editor = CodeMirror.fromTextArea(document.getElementById('codeEditor'), {
+            lineNumbers: true,
+            mode: 'python',
+            theme: 'eclipse',
+            indentUnit: 4,
+            tabSize: 4,
+            lineWrapping: true,
+            extraKeys: { "Ctrl-Space": "autocomplete" }
+        });
+
+        // Event Listeners
+        document.getElementById('createBtn').addEventListener('click', createBattle);
+        document.getElementById('joinBtn').addEventListener('click', joinBattle);
+        document.getElementById('submitBtn').addEventListener('click', submitCode);
+        document.getElementById('language').addEventListener('change', handleLanguageChange);
+    });
+
+    function handleLanguageChange() {
+        const langId = this.value;
+        let mode = 'python';
+        if (langId === '63') mode = 'javascript';
+        if (langId === '54' || langId === '62') mode = 'text/x-c++src'; // C++ and Java share clike mode
+        editor.setOption('mode', mode);
+    }
+
+    // --- WebSocket Connection ---
+    function connectWebSocket() {
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${window.location.host}/ws/coding-battle/`;
+
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+            console.log('WebSocket Connected');
+            if (roomName) {
+                // If we have a room name (e.g. from join), send join action
+                sendJson({ action: 'join', room: roomName, player: playerName });
+            } else {
+                // Otherwise create
+                const diff = document.getElementById('difficultySelect').value;
+                sendJson({ action: 'create', player: playerName, difficulty: diff });
+            }
+        };
+
+        socket.onmessage = (e) => {
+            const data = JSON.parse(e.data);
+            console.log('Received:', data);
+            handleServerEvent(data);
+        };
+
+        socket.onclose = () => {
+            console.log('WebSocket Disconnected');
+            alert('Connection lost. Please refresh.');
+        };
+    }
+
+    function sendJson(data) {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(data));
+        }
+    }
+
+    // --- Actions ---
+    function createBattle() {
+        playerName = document.getElementById('playerName').value.trim() || 'Player 1';
+        roomName = null; // Will be assigned by server
+        connectWebSocket();
+    }
+
+    function joinBattle() {
+        playerName = document.getElementById('playerName').value.trim() || 'Player 2';
+        roomName = document.getElementById('roomInput').value.trim();
+        if (!roomName) {
+            alert('Please enter a Room ID');
+            return;
+        }
+        connectWebSocket();
+    }
+
+    function submitCode() {
+        if (isRunning) return;
+
+        const code = editor.getValue();
+        const langId = document.getElementById('language').value;
+
+        if (!code.trim()) {
+            alert('Please write some code first!');
+            return;
+        }
+
+        isRunning = true;
+        updateSubmitBtn(true);
+        document.getElementById('myOutput').innerHTML = '<span class="text-warning">Running tests on server...</span>';
+
+        sendJson({
+            action: 'submit',
+            source_code: code,
+            language_id: parseInt(langId)
+        });
+    }
+
+    function updateSubmitBtn(loading) {
+        const btn = document.getElementById('submitBtn');
+        const spinner = btn.querySelector('.spinner-border');
+        if (loading) {
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+        } else {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+        }
+    }
+
+    // --- Event Handling ---
+    function handleServerEvent(data) {
+        switch (data.event) {
+            case 'created':
+                roomName = data.room;
+                document.getElementById('setupArea').querySelector('.row').style.display = 'none';
+                document.getElementById('waitingMsg').style.display = 'block';
+                document.getElementById('displayRoomCode').textContent = roomName;
+                break;
+
+            case 'joined':
+                // I joined successfully
+                break;
+
+            case 'player_joined':
+                // Someone joined
+                if (data.player !== playerName) {
+                    document.getElementById('opponentName').textContent = data.player;
+                }
+                break;
+
+            case 'battle_started':
+                startBattleUI(data.problem);
+                break;
+
+            case 'submission_result':
+                isRunning = false;
+                updateSubmitBtn(false);
+                renderMyResults(data);
+                break;
+
+            case 'opponent_running':
+                // Optional: show opponent is running code
+                break;
+
+            case 'opponent_result':
+                // Optional: show opponent passed X tests
+                break;
+
+            case 'game_over':
+                showGameOver(data);
+                break;
+
+            case 'error':
+                alert('Error: ' + data.message);
+                break;
+        }
+    }
+
+    function startBattleUI(problem) {
+        // Reset UI
+        const modalEl = document.getElementById('gameOverModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
+
+        document.getElementById('myOutput').innerHTML = '<div class="text-muted fst-italic">Ready to run code...</div>';
+        document.getElementById('winnerText').textContent = '';
+        document.getElementById('winReason').textContent = '';
+        document.getElementById('finalStats').innerHTML = '';
+
+        document.getElementById('setupArea').style.display = 'none';
+        document.getElementById('battleArea').style.display = 'flex'; // Use flex for layout
+        document.getElementById('roomBadge').textContent = roomName;
+
+        document.getElementById('problemTitle').textContent = problem.title || 'Coding Challenge';
+        document.getElementById('problemDesc').textContent = problem.description || 'Solve the problem.';
+
+        if (problem.starter_code) {
+            editor.setValue(problem.starter_code);
+        }
+
+        // Display Test Cases / Examples
+        const inputFormatEl = document.getElementById('inputFormat');
+        if (problem.test_cases) {
+            let cases = problem.test_cases;
+            if (typeof cases === 'string') {
+                try { cases = JSON.parse(cases); } catch (e) { }
+            }
+
+            let html = '';
+            if (Array.isArray(cases)) {
+                cases.forEach((tc, idx) => {
+                    html += `<strong>Example ${idx + 1}:</strong>\nInput:\n${tc.input}\n\nOutput:\n${tc.expected_output}\n\n`;
+                });
+            }
+            inputFormatEl.textContent = html;
+            inputFormatEl.style.display = 'block';
+        } else if (problem.sample_tests) {
+            let html = '';
+            problem.sample_tests.forEach((tc, idx) => {
+                html += `<strong>Example ${idx + 1}:</strong>\nInput:\n${tc.input}\n\nOutput:\n${tc.expected_output}\n\n`;
+            });
+            inputFormatEl.innerHTML = html.replace(/\n/g, '<br>'); // Use innerHTML for formatting
+            inputFormatEl.style.display = 'block';
+        }
+
+        // Start Timer
+        startTime = Date.now();
+        timerInterval = setInterval(() => {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const mins = Math.floor(elapsed / 60).toString().padStart(2, '0');
+            const secs = (elapsed % 60).toString().padStart(2, '0');
+            document.getElementById('timer').textContent = `${mins}:${secs}`;
+        }, 1000);
+
+        // Refresh editor to fix layout issues after display:none
+        setTimeout(() => editor.refresh(), 100);
+    }
+
+    function renderMyResults(data) {
+        const panel = document.getElementById('myOutput');
+        let html = `<div class="mb-2"><strong>Passed: ${data.passed}/${data.total}</strong></div>`;
+
+        data.results.forEach((res, idx) => {
+            const color = res.passed ? 'text-success' : 'text-danger';
+            const icon = res.passed ? '✓' : '✗';
+            html += `
+                <div class="mb-2 border-bottom pb-2">
+                    <div class="${color} fw-bold">Test Case ${idx + 1}: ${icon}</div>
+                    ${!res.passed ? `<div class="ps-3 text-muted small mt-1">Expected: ${res.expected}<br>Got: ${res.actual || res.error || 'None'}</div>` : ''}
+                </div>
+            `;
+        });
+        panel.innerHTML = html;
+    }
+
+    function showGameOver(data) {
+        clearInterval(timerInterval);
+        const modal = new bootstrap.Modal(document.getElementById('gameOverModal'));
+
+        const isMe = data.winner === playerName;
+        const title = document.getElementById('winnerText');
+
+        if (isMe) {
+            title.textContent = "🏆 You Won!";
+            title.className = "display-4 mb-3 text-success";
+        } else if (data.winner) {
+            title.textContent = "😞 You Lost";
+            title.className = "display-4 mb-3 text-danger";
+        } else {
+            title.textContent = "🤝 Draw";
+            title.className = "display-4 mb-3 text-warning";
+        }
+
+        document.getElementById('winReason').textContent = data.reason;
+
+        // Stats
+        let statsHtml = '';
+        if (data.submissions) {
+            for (const [p, sub] of Object.entries(data.submissions)) {
+                statsHtml += `
+                    <div class="d-flex justify-content-between mb-2 border-bottom pb-1">
+                        <span class="fw-bold">${p}:</span>
+                        <span>${sub.passed}/${sub.total} tests • ${sub.runtime.toFixed(3)}s</span>
+                    </div>
+                `;
+            }
+        }
+        document.getElementById('finalStats').innerHTML = statsHtml;
+
+        modal.show();
+    }
+
+    function getDifficultyColor(diff) {
+        if (diff === 'easy') return 'success';
+        if (diff === 'medium') return 'warning';
+        if (diff === 'hard') return 'danger';
+        return 'secondary';
+    }
+</script>
+{% endblock %}

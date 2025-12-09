@@ -1,0 +1,129 @@
+{% extends 'quiz/base.html' %}
+
+{% block content %}
+<div class="container d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="card bg-white text-dark border shadow-lg"
+        style="max-width: 500px; width: 100%; border-color: var(--card-border);">
+        <div class="card-header bg-white border-bottom text-center py-4" style="border-color: var(--card-border);">
+            <h3 class="mb-0 fw-bold text-primary">🚀 Join SmartQuizArena</h3>
+            <small class="text-muted">Create your account and start learning</small>
+        </div>
+        <div class="card-body p-4">
+            {% if messages %}
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
+
+            <form method="post" action="{% url 'quiz:signup' %}" id="signupForm">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label for="username" class="form-label text-muted">Username</label>
+                    <input type="text" class="form-control" id="username" name="username" required autofocus>
+                    <small class="text-muted">Choose a unique username</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label text-muted">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" required>
+                </div>
+
+                <div class="mb-3">
+                    <label for="password1" class="form-label text-muted">Password</label>
+                    <input type="password" class="form-control" id="password1" name="password1" required>
+                    <div class="password-strength mt-2"
+                        style="height: 5px; background: #e9ecef; border-radius: 3px; overflow: hidden;">
+                        <div class="password-strength-bar" id="strengthBar"
+                            style="height: 100%; width: 0%; transition: width 0.3s ease, background 0.3s ease;"></div>
+                    </div>
+                    <small class="text-muted" id="strengthText">Password strength</small>
+                </div>
+
+                <div class="mb-3">
+                    <label for="password2" class="form-label text-muted">Confirm Password</label>
+                    <input type="password" class="form-control" id="password2" name="password2" required>
+                    <small class="text-danger d-none" id="passwordMismatch">Passwords do not match</small>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="first_name" class="form-label text-muted">First Name (Optional)</label>
+                        <input type="text" class="form-control" id="first_name" name="first_name">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="last_name" class="form-label text-muted">Last Name (Optional)</label>
+                        <input type="text" class="form-control" id="last_name" name="last_name">
+                    </div>
+                </div>
+
+                <div class="d-grid gap-2 mt-3">
+                    <button type="submit" class="btn btn-primary btn-lg">Create Account</button>
+                    <a href="{% url 'quiz:login' %}" class="btn btn-outline-secondary">Already have an account? Log
+                        in</a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Password strength indicator
+    const password1Input = document.getElementById('password1');
+    const strengthBar = document.getElementById('strengthBar');
+    const strengthText = document.getElementById('strengthText');
+
+    password1Input.addEventListener('input', function () {
+        const value = this.value;
+        let strength = 0;
+
+        if (value.length >= 8) strength++;
+        if (/[a-z]/.test(value) && /[A-Z]/.test(value)) strength++;
+        if (/\d/.test(value)) strength++;
+        if (/[^a-zA-Z\d]/.test(value)) strength++;
+
+        if (strength <= 1) {
+            strengthBar.style.width = '33%';
+            strengthBar.style.backgroundColor = '#dc3545';
+            strengthText.textContent = 'Weak password';
+            strengthText.className = 'text-danger';
+        } else if (strength <= 3) {
+            strengthBar.style.width = '66%';
+            strengthBar.style.backgroundColor = '#ffc107';
+            strengthText.textContent = 'Medium password';
+            strengthText.className = 'text-warning';
+        } else {
+            strengthBar.style.width = '100%';
+            strengthBar.style.backgroundColor = '#198754';
+            strengthText.textContent = 'Strong password';
+            strengthText.className = 'text-success';
+        }
+    });
+
+    // Password match validation
+    const password2Input = document.getElementById('password2');
+    const passwordMismatch = document.getElementById('passwordMismatch');
+    const form = document.getElementById('signupForm');
+
+    password2Input.addEventListener('input', function () {
+        if (password1Input.value !== password2Input.value) {
+            passwordMismatch.classList.remove('d-none');
+            password2Input.classList.add('is-invalid');
+        } else {
+            passwordMismatch.classList.add('d-none');
+            password2Input.classList.remove('is-invalid');
+        }
+    });
+
+    form.addEventListener('submit', function (e) {
+        if (password1Input.value !== password2Input.value) {
+            e.preventDefault();
+            passwordMismatch.classList.remove('d-none');
+            password2Input.classList.add('is-invalid');
+        }
+    });
+</script>
+{% endblock %}

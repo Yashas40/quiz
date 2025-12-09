@@ -1,0 +1,108 @@
+{% extends 'quiz/base.html' %}
+
+{% block title %}SmartQuizArena - Home{% endblock %}
+
+{% block extra_css %}
+<style>
+    .hero-section {
+        padding: 100px 0;
+        text-align: center;
+        color: var(--text-color);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .game-card {
+        background: #ffffff;
+        border-radius: 20px;
+        padding: 40px;
+        margin: 20px 0;
+        border: 1px solid var(--card-border);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    }
+
+    .game-card:hover {
+        transform: translateY(-10px);
+        box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-color);
+    }
+
+    .btn-custom {
+        background: linear-gradient(45deg, #0d6efd, #0dcaf0);
+        border: none;
+        border-radius: 30px;
+        padding: 15px 40px;
+        color: white;
+        font-weight: bold;
+        text-decoration: none;
+        display: inline-block;
+        transition: all 0.3s ease;
+        font-size: 1.1rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    .btn-custom:hover {
+        transform: scale(1.05);
+        color: white;
+        box-shadow: 0 10px 20px rgba(13, 110, 253, 0.3);
+    }
+
+    .display-4 {
+        font-weight: 800;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="hero-section">
+    <div class="container">
+        <h1 class="display-3 mb-4 fw-bold text-primary">🎯 SmartQuizArena</h1>
+        <p class="lead mb-5 fs-3 text-muted">Challenge your mind with AI-powered quizzes and real-time coding
+            battles!</p>
+
+        <div class="row justify-content-center g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="game-card">
+                    <div>
+                        <div class="display-1 mb-3">🎮</div>
+                        <h3 class="fw-bold mb-3">Single Player</h3>
+                        <p class="fs-5 text-muted mb-4">Test your knowledge in a solo quiz adventure with
+                            AI-generated questions.</p>
+                    </div>
+                    <a href="{% url 'quiz:single_player' %}" class="btn-custom">Start Quiz</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="game-card">
+                    <div>
+                        <div class="display-1 mb-3">👥</div>
+                        <h3 class="fw-bold mb-3">Multiplayer</h3>
+                        <p class="fs-5 text-muted mb-4">Compete with friends in real-time battles and climb the
+                            leaderboard.</p>
+                    </div>
+                    <a href="{% url 'quiz:multiplayer' %}" class="btn-custom">Join Game</a>
+                </div>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <div class="game-card">
+                    <div>
+                        <div class="display-1 mb-3">💻</div>
+                        <h3 class="fw-bold mb-3">Coding Battle</h3>
+                        <p class="fs-5 text-muted mb-4">Solve algorithmic challenges and prove your coding skills
+                            against others.</p>
+                    </div>
+                    <a href="{% url 'quiz:coding_battle' %}" class="btn-custom">Code Battle</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
